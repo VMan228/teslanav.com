@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import posthog from "posthog-js";
 import { ShieldExclamationIcon, MapIcon } from "@heroicons/react/24/solid";
 
@@ -158,10 +159,11 @@ export function SettingsModal({
                     window.open("https://buy.stripe.com/9B68wPg5wavU3Px3Tb7EQ0c", "_blank");
                   }}
                 >
-                  <img 
-                    src="/teslanav-donation-qrcode.png" 
-                    alt="Scan to donate" 
-                    className="w-40 h-40"
+                  <Image
+                    src="/teslanav-donation-qrcode.png"
+                    alt="Scan to donate"
+                    width={160}
+                    height={160}
                   />
                 </div>
                 <div className={`text-sm ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
@@ -617,10 +619,3 @@ function EmailIcon({ className }: { className?: string }) {
   );
 }
 
-function ExternalLinkIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-    </svg>
-  );
-}

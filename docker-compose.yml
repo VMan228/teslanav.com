@@ -1,0 +1,73 @@
+services:
+  # ── Waze Playwright sidecar ─────────────────────────────────────────────────
+  # Profile "sidecar": local dev / testing only.
+  # Production: run the sidecar as a systemd service on the VPS host with Xvfb
+  # (see services/waze-sidecar/deploy/). Set WAZE_SIDECAR_URL in .env to point
+  # to the host process: http://host.docker.internal:8001
+  waze-sidecar:
+    profiles: ["sidecar"]
+    build:
+      context: ./services/waze-sidecar
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - teslanav_net
+    expose:
+      - "8000"                # internal only — NOT published to host
+    volumes:
+      - ./data/waze:/data     # bind mount — seed waze_session.json here before first start
+    environment:
+      - WAZE_EMAIL=${WAZE_EMAIL}
+      - COOKIE_FILE=/data/waze_session.json
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Uncomment to enable automated IMAP OTP re-auth on session expiry:
+      # - WAZE_OTP_IMAP_HOST=${WAZE_OTP_IMAP_HOST}
+      # - WAZE_OTP_IMAP_PORT=${WAZE_OTP_IMAP_PORT:-993}
+      # - WAZE_OTP_IMAP_USER=${WAZE_OTP_IMAP_USER}
+      # - WAZE_OTP_IMAP_PASS=${WAZE_OTP_IMAP_PASS}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s      # grace period for Playwright + Chromium cold start
+
+  # ── TeslaNav Next.js app ────────────────────────────────────────────────────
+  teslanav:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_ vars are baked into client JS at build time.
+        # Docker Compose reads these from .env automatically.
+        NEXT_PUBLIC_MAPBOX_TOKEN: ${NEXT_PUBLIC_MAPBOX_TOKEN}
+        NEXT_PUBLIC_POSTHOG_KEY: ${NEXT_PUBLIC_POSTHOG_KEY}
+        NEXT_PUBLIC_POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST}
+        NEXT_PUBLIC_PROJECT_SHUTDOWN: ${NEXT_PUBLIC_PROJECT_SHUTDOWN:-false}
+    restart: unless-stopped
+    networks:
+      - teslanav_net
+    ports:
+      - "3000:3000"
+    # Allows teslanav to reach the host-side sidecar at host.docker.internal:8001
+    # On Linux/VPS: Docker resolves host-gateway to the Docker bridge host IP.
+    # On macOS Docker Desktop: host.docker.internal is handled natively.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      UPSTASH_REDIS_REST_URL: ${UPSTASH_REDIS_REST_URL}
+      UPSTASH_REDIS_REST_TOKEN: ${UPSTASH_REDIS_REST_TOKEN}
+      BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN}
+      LOCATIONIQ_API_KEY: ${LOCATIONIQ_API_KEY}
+      INBOUND_API_KEY: ${INBOUND_API_KEY}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      WAZE_API_KEY: ${WAZE_API_KEY:-}
+      # Point to whichever sidecar is running:
+      #   VPS host process  → http://host.docker.internal:8001
+      #   Docker sidecar    → http://waze-sidecar:8000  (docker compose --profile sidecar up)
+      #   No sidecar        → leave empty to use WAZE_API_KEY fallback
+      WAZE_SIDECAR_URL: ${WAZE_SIDECAR_URL:-}
+
+networks:
+  teslanav_net:
+    driver: bridge

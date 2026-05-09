@@ -779,6 +779,7 @@ export const Map = forwardRef<MapRef, MapProps>(function Map(
       map.current?.remove();
       map.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Long press handler for "navigate to" functionality
@@ -1193,6 +1194,7 @@ export const Map = forwardRef<MapRef, MapProps>(function Map(
         remove3DTerrain();
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [use3DMode, mapLoaded]);
 
   // Set up persistent style.load listener for 3D terrain (runs when style changes)
@@ -1307,6 +1309,7 @@ export const Map = forwardRef<MapRef, MapProps>(function Map(
       currentHeadingRef.current = initialHeading;
       targetHeadingRef.current = initialHeading;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userLocation, mapLoaded, isDarkMode]);
 
   // Update avatar image when dark mode changes
@@ -1627,15 +1630,6 @@ export const Map = forwardRef<MapRef, MapProps>(function Map(
     // Track which markers should exist
     const newMarkerIds = new Set<string>();
     
-    // Track which marker has an open popup (to preserve it)
-    let openPopupMarkerId: string | null = null;
-    for (const [id, marker] of markersRef.current) {
-      if (marker.getPopup()?.isOpen()) {
-        openPopupMarkerId = id;
-        break;
-      }
-    }
-
     clusters.forEach((cluster) => {
       const markerId = getClusterId(cluster);
       newMarkerIds.add(markerId);

@@ -162,7 +162,7 @@ function LiveHome() {
   const simulationIndexRef = useRef(0);
   const simulationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { latitude: realLatitude, longitude: realLongitude, heading, effectiveHeading: realEffectiveHeading, speed: realSpeed, loading: geoLoading, error: geoError } = useGeolocation();
+  const { latitude: realLatitude, longitude: realLongitude, heading, effectiveHeading: realEffectiveHeading, speed: realSpeed, error: geoError } = useGeolocation();
   
   // Use simulated position if simulating, otherwise use real position
   const latitude = isSimulating && simulatedPosition ? simulatedPosition.lat : realLatitude;
@@ -575,7 +575,7 @@ function LiveHome() {
     const lat2Rad = toRad(lat2);
     const y = Math.sin(dLng) * Math.cos(lat2Rad);
     const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
-    let bearing = toDeg(Math.atan2(y, x));
+    const bearing = toDeg(Math.atan2(y, x));
     return (bearing + 360) % 360;
   }, []);
 
@@ -627,6 +627,7 @@ function LiveHome() {
     }, SIMULATION_SPEED);
     
     posthog.capture("dev_simulation_started");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route, calculateBearing]);
 
   // Stop route simulation

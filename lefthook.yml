@@ -1,0 +1,18 @@
+pre-commit:
+  parallel: true
+  commands:
+    typecheck:
+      glob: "**/*.{ts,tsx}"
+      run: bun run typecheck
+    eslint:
+      glob: "**/*.{ts,tsx,js,jsx}"
+      run: bun run lint --max-warnings 0
+    python-lint:
+      glob: "services/waze-sidecar/**/*.py"
+      run: >
+        bash -c 'cd services/waze-sidecar &&
+        if command -v ruff &>/dev/null; then
+          ruff check . && ruff format --check .
+        else
+          echo "[skip] ruff not installed — pip install ruff to enable Python lint"
+        fi'

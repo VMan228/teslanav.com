@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+.git
+.gitignore
+.env*
+!.env.example
+.idea
+.claude
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+services/waze-sidecar/.venv
+data/
+coverage
+.vercel

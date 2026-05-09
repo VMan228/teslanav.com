@@ -1,0 +1,25 @@
+services:
+  waze-sidecar:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - waze_data:/data
+    environment:
+      - WAZE_EMAIL=${WAZE_EMAIL}
+      - COOKIE_FILE=/data/waze_session.json
+      - LOG_LEVEL=INFO
+      # Optional — enable for automated OTP re-auth
+      # - WAZE_OTP_IMAP_HOST=imap.gmail.com
+      # - WAZE_OTP_IMAP_PORT=993
+      # - WAZE_OTP_IMAP_USER=${WAZE_OTP_IMAP_USER}
+      # - WAZE_OTP_IMAP_PASS=${WAZE_OTP_IMAP_PASS}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  waze_data:

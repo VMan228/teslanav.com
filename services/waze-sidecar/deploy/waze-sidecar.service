@@ -1,0 +1,23 @@
+[Unit]
+Description=Waze Playwright sidecar
+After=network.target xvfb.service
+Requires=xvfb.service
+
+[Service]
+Type=simple
+User=waze-sidecar
+Group=waze-sidecar
+WorkingDirectory=/opt/waze-sidecar
+EnvironmentFile=/opt/waze-sidecar/.env
+Environment=DISPLAY=:99
+Environment=PLAYWRIGHT_HEADLESS=0
+Environment=COOKIE_FILE=/opt/waze-sidecar/data/waze_session.json
+ExecStart=/opt/waze-sidecar/.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8001
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=waze-sidecar
+
+[Install]
+WantedBy=multi-user.target

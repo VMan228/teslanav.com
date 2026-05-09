@@ -35,7 +35,7 @@ function calculateBearing(
     Math.cos(lat1Rad) * Math.sin(lat2Rad) -
     Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
 
-  let bearing = toDeg(Math.atan2(y, x));
+  const bearing = toDeg(Math.atan2(y, x));
   return (bearing + 360) % 360;
 }
 
