@@ -6,7 +6,7 @@ pre-commit:
       run: bun run typecheck
     eslint:
       glob: "**/*.{ts,tsx,js,jsx}"
-      run: bun run lint --max-warnings 0
+      run: bun run lint --max-warnings 0 2>&1 | grep -v "baseline-browser-mapping"; exit ${PIPESTATUS[0]}
     python-lint:
       glob: "services/waze-sidecar/**/*.py"
       run: >
