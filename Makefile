@@ -1,6 +1,6 @@
-# ═══════════════════════════════════════════════════════════════════════════════
-# TeslaNav — Production Makefile  (Ubuntu 24.x LTS)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
+# TeslaNav - Production Makefile  (Ubuntu 24.x LTS)
+# ===============================================================================
 #
 #  First deploy (run as root):
 #    make setup  DOMAIN=nav.example.com
@@ -15,9 +15,9 @@
 #  Daily ops:
 #    make status | make logs | make logs-sidecar
 #
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===============================================================================
 
-# ── Configuration (override on the command line) ──────────────────────────────
+# -- Configuration (override on the command line) ------------------------------
 DOMAIN      ?=
 ACME_EMAIL  ?= $(if $(DOMAIN),webmaster@$(DOMAIN),)
 SIDECAR_DIR := /opt/waze-sidecar
@@ -29,7 +29,7 @@ UBUNTU_CODENAME := $(shell . /etc/os-release 2>/dev/null && echo $${VERSION_CODE
 
 SHELL := /bin/bash
 
-# ── ANSI helpers (silenced on non-interactive terminals) ──────────────────────
+# -- ANSI helpers (silenced on non-interactive terminals) ----------------------
 _tty := $(shell [ -t 1 ] && echo yes)
 ifeq ($(_tty),yes)
   BOLD   := $(shell printf '\033[1m')
@@ -60,11 +60,11 @@ endif
         cookies rollback \
         _check-root _check-domain _check-env
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 # Help
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 help:
-	@printf '\n$(BOLD)TeslaNav — Production Makefile$(RESET)\n\n'
+	@printf '\n$(BOLD)TeslaNav - Production Makefile$(RESET)\n\n'
 	@printf '$(CYAN)First-time setup$(RESET) (run as root):\n'
 	@printf '  make setup   DOMAIN=nav.example.com\n'
 	@printf '  make env-init && nano .env\n'
@@ -89,30 +89,30 @@ help:
 	@printf '$(CYAN)Cookie bootstrap$(RESET):\n'
 	@printf '  make cookies DOMAIN=nav.example.com\n\n'
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 # Guards
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 _check-root:
 	@if [ "$$(id -u)" -ne 0 ]; then \
-		printf '$(RED)Error: this target requires root — prefix with sudo$(RESET)\n'; \
+		printf '$(RED)Error: this target requires root - prefix with sudo$(RESET)\n'; \
 		exit 1; \
 	fi
 
 _check-domain:
 	@if [ -z '$(DOMAIN)' ]; then \
-		printf '$(RED)Error: DOMAIN is required  →  make ... DOMAIN=nav.example.com$(RESET)\n'; \
+		printf '$(RED)Error: DOMAIN is required  ->  make ... DOMAIN=nav.example.com$(RESET)\n'; \
 		exit 1; \
 	fi
 
 _check-env:
 	@if [ ! -f .env ]; then \
-		printf '$(RED)Error: .env not found — run: make env-init$(RESET)\n'; \
+		printf '$(RED)Error: .env not found - run: make env-init$(RESET)\n'; \
 		exit 1; \
 	fi
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 # First-time setup   (requires root)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 
 ## Run all first-time setup steps in order
 setup: _check-root _check-domain setup-docker setup-sidecar setup-nginx
@@ -125,7 +125,7 @@ setup: _check-root _check-domain setup-docker setup-sidecar setup-nginx
 
 ## Install Docker CE + Compose plugin from the official Docker apt repository
 setup-docker: _check-root
-	@printf '$(BOLD)Installing Docker CE…$(RESET)\n'
+	@printf '$(BOLD)Installing Docker CE...$(RESET)\n'
 	apt-get update -qq
 	apt-get install -y --no-install-recommends ca-certificates curl gnupg lsb-release
 	install -m 0755 -d /etc/apt/keyrings
@@ -143,14 +143,14 @@ setup-docker: _check-root
 
 ## Install the Waze Playwright sidecar as a systemd service with Xvfb
 setup-sidecar: _check-root
-	@printf '$(BOLD)Installing Waze sidecar…$(RESET)\n'
+	@printf '$(BOLD)Installing Waze sidecar...$(RESET)\n'
 	bash services/waze-sidecar/deploy/setup.sh
 	@printf '$(GREEN)Sidecar installed.$(RESET)\n'
 	@printf '$(YELLOW)Action required: fill in $(SIDECAR_DIR)/.env (WAZE_EMAIL at minimum)$(RESET)\n'
 
 ## Install nginx and write the reverse-proxy config for DOMAIN
 setup-nginx: _check-root _check-domain
-	@printf '$(BOLD)Installing nginx and configuring reverse proxy for $(DOMAIN)…$(RESET)\n'
+	@printf '$(BOLD)Installing nginx and configuring reverse proxy for $(DOMAIN)...$(RESET)\n'
 	apt-get install -y --no-install-recommends nginx
 	systemctl enable --now nginx
 	sed 's/TESLANAV_DOMAIN/$(DOMAIN)/g' deploy/nginx.conf.template > $(NGINX_CONF)
@@ -158,15 +158,15 @@ setup-nginx: _check-root _check-domain
 	rm -f /etc/nginx/sites-enabled/default
 	nginx -t
 	systemctl reload nginx
-	@printf '$(GREEN)nginx configured. Port 80 → localhost:3000$(RESET)\n'
+	@printf '$(GREEN)nginx configured. Port 80 -> localhost:3000$(RESET)\n'
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 # SSL   (requires root + DNS pointing at this server)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 
 ## Obtain a Let's Encrypt certificate and configure HTTPS in nginx
 ssl: _check-root _check-domain
-	@printf '$(BOLD)Obtaining Let'\''s Encrypt certificate for $(DOMAIN)…$(RESET)\n'
+	@printf "$(BOLD)Obtaining Let's Encrypt certificate for $(DOMAIN)...$(RESET)\n"
 	apt-get install -y --no-install-recommends certbot python3-certbot-nginx
 	certbot --nginx \
 		-d $(DOMAIN) \
@@ -177,14 +177,14 @@ ssl: _check-root _check-domain
 	@printf '$(GREEN)HTTPS enabled. Auto-renewal is handled by certbot.$(RESET)\n'
 	@printf 'Verify: certbot renew --dry-run\n'
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 # Environment
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 
 ## Create .env from .env.example (skips if .env already exists)
 env-init:
 	@if [ -f .env ]; then \
-		printf '$(YELLOW).env already exists — skipping. Delete it first to reinitialize.$(RESET)\n'; \
+		printf '$(YELLOW).env already exists - skipping. Delete it first to reinitialize.$(RESET)\n'; \
 	else \
 		cp .env.example .env; \
 		printf '$(GREEN).env created from .env.example$(RESET)\n'; \
@@ -193,28 +193,28 @@ env-init:
 
 ## Verify that all required env vars have non-placeholder values
 env-check: _check-env
-	@printf '$(BOLD)Checking required env vars in .env…$(RESET)\n'
+	@printf '$(BOLD)Checking required env vars in .env...$(RESET)\n'
 	@missing=0; \
 	for var in NEXT_PUBLIC_MAPBOX_TOKEN UPSTASH_REDIS_REST_URL \
 	           UPSTASH_REDIS_REST_TOKEN ADMIN_API_KEY; do \
 		val=$$(grep -E "^$${var}=" .env | cut -d= -f2- | tr -d '"'); \
 		if [ -z "$$val" ] || printf '%s' "$$val" | \
 		   grep -qE 'PLACEHOLDER|your-|REPLACE|^\.\.\.|^pk\.\.\.'; then \
-			printf '  $(RED)✗ %s is not set$(RESET)\n' "$$var"; \
+			printf '  $(RED)FAIL %s is not set$(RESET)\n' "$$var"; \
 			missing=$$((missing+1)); \
 		else \
-			printf '  $(GREEN)✓ %s$(RESET)\n' "$$var"; \
+			printf '  $(GREEN)OK %s$(RESET)\n' "$$var"; \
 		fi; \
 	done; \
 	if [ $$missing -gt 0 ]; then \
-		printf '$(RED)%d required var(s) missing — edit .env and retry$(RESET)\n' "$$missing"; \
+		printf '$(RED)%d required var(s) missing - edit .env and retry$(RESET)\n' "$$missing"; \
 		exit 1; \
 	fi
 	@printf '$(GREEN)All required vars are set.$(RESET)\n'
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 # Deployment
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 
 ## Build image and start all services (env-check runs first)
 deploy: env-check build up
@@ -227,13 +227,13 @@ deploy: env-check build up
 
 ## Build the teslanav Docker image
 build: _check-env
-	@printf '$(BOLD)Building Docker image…$(RESET)\n'
+	@printf '$(BOLD)Building Docker image...$(RESET)\n'
 	$(COMPOSE) build
 	@printf '$(GREEN)Build complete.$(RESET)\n'
 
-## Start containers (does not rebuild — use deploy or build+up for that)
+## Start containers (does not rebuild - use deploy or build+up for that)
 up: _check-env
-	@printf '$(BOLD)Starting containers…$(RESET)\n'
+	@printf '$(BOLD)Starting containers...$(RESET)\n'
 	$(COMPOSE) up -d
 	@printf '$(GREEN)Containers started.$(RESET)\n'
 
@@ -241,9 +241,9 @@ up: _check-env
 down:
 	$(COMPOSE) down
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 # Rolling update
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 
 ## Pull latest code, rebuild image, restart container + sidecar  (requires root for sidecar sync)
 update: pull build up update-sidecar
@@ -251,12 +251,12 @@ update: pull build up update-sidecar
 
 ## Fast-forward pull (fails loudly on merge conflicts)
 pull:
-	@printf '$(BOLD)Pulling latest code…$(RESET)\n'
+	@printf '$(BOLD)Pulling latest code...$(RESET)\n'
 	git pull --ff-only
 
 ## Sync sidecar source to /opt/waze-sidecar, reinstall deps, restart service
 update-sidecar: _check-root
-	@printf '$(BOLD)Syncing waze-sidecar source…$(RESET)\n'
+	@printf '$(BOLD)Syncing waze-sidecar source...$(RESET)\n'
 	rsync -a --delete \
 		--exclude='.env' \
 		--exclude='data/' \
@@ -268,9 +268,9 @@ update-sidecar: _check-root
 	systemctl restart waze-sidecar
 	@printf '$(GREEN)waze-sidecar synced and restarted.$(RESET)\n'
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 # Service control
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 
 ## Restart the teslanav Docker container
 restart:
@@ -282,9 +282,9 @@ restart-sidecar: _check-root
 	systemctl restart waze-sidecar
 	@printf '$(GREEN)waze-sidecar restarted.$(RESET)\n'
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 # Monitoring
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 
 ## Show status of all services: Docker, waze-sidecar, nginx
 status:
@@ -307,14 +307,14 @@ logs-sidecar:
 shell:
 	$(COMPOSE) exec teslanav sh
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 # Waze cookie bootstrap
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 
 ## Print step-by-step instructions for seeding fresh Waze session cookies
 cookies: _check-domain
 	@printf '\n$(BOLD)Waze Cookie Bootstrap$(RESET)\n'
-	@printf '═══════════════════════════════════════════════════\n\n'
+	@printf '===================================================\n\n'
 	@printf 'The waze-sidecar needs a valid Waze session cookie file (expires ~30 days).\n'
 	@printf 'Run these commands on your $(BOLD)local machine$(RESET) '
 	@printf '(where you are logged into waze.com in Chrome):\n\n'
@@ -327,9 +327,9 @@ cookies: _check-domain
 	@printf '    systemctl restart waze-sidecar"\n\n'
 	@printf '$(YELLOW)Repeat this process when the sidecar starts returning 503 errors (~monthly).$(RESET)\n\n'
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 # Rollback
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ----------------------------------------------------------------------------
 
 ## Show recent commits and instructions for rolling back to a previous version
 rollback:
