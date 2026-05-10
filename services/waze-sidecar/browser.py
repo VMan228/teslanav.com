@@ -173,7 +173,11 @@ class BrowserManager:
             response = await resp_info.value
 
             if response.status != 200:
-                log.warning("georss returned HTTP %s (attempt %s)", response.status, attempt)
+                body = await response.text()
+                log.warning(
+                    "georss returned HTTP %s (attempt %s) body=%r",
+                    response.status, attempt, body[:500],
+                )
                 if attempt == 1:
                     log.info("Re-authenticating after non-200 response")
                     await self._login()
