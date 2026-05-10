@@ -62,18 +62,26 @@ class BrowserManager:
         proxy = {"server": BROWSER_PROXY_URL} if BROWSER_PROXY_URL else None
         if proxy:
             log.info("Using proxy: %s", BROWSER_PROXY_URL)
+        # BROWSER_CHANNEL: set to "chrome" or "msedge" to use an installed browser
+        # instead of Playwright's bundled Chromium (better reCAPTCHA scoring).
+        # Leave empty to use bundled Chromium (Linux/server deployments).
+        channel = os.getenv("BROWSER_CHANNEL", "") or None
+        linux_args = [
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-setuid-sandbox",
+            "--crash-dumps-dir=/tmp",
+        ]
         self._browser = await self._pw.chromium.launch(
+            channel=channel,
             headless=HEADLESS,
             proxy=proxy,
             args=[
                 "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-setuid-sandbox",
                 "--disable-infobars",
                 "--window-size=1920,1080",
                 "--disable-extensions",
-                "--crash-dumps-dir=/tmp",
+                *(linux_args if not channel else []),
             ],
         )
         self._context = await self._browser.new_context(
