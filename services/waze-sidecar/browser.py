@@ -103,7 +103,7 @@ class BrowserManager:
             await self._context.add_cookies(cookies)
             log.info("Cookies loaded — session assumed valid (confirmed on first real request)")
         else:
-            log.warning("No cookie file found — service will return 503 until cookies are provided")
+            log.warning("No cookie file at %s — service will return 503 until cookies are provided", COOKIE_FILE)
 
         self._ready = True
         log.info("Browser ready")
