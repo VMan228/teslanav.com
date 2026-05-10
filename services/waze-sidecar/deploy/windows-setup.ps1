@@ -57,6 +57,10 @@ if ($isAdmin) {
     Write-Ok "Permissions set on administrators_authorized_keys"
 }
 
+# Restart sshd so it picks up the new authorized key
+Restart-Service sshd
+Write-Ok "sshd restarted"
+
 # --- 3. Reverse SSH tunnel scheduled task ---
 Write-Step "Creating scheduled task for reverse SSH tunnel..."
 
