@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any
 
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page, Playwright
-from playwright_stealth import stealth_async
 
 log = logging.getLogger(__name__)
 
@@ -93,7 +92,30 @@ class BrowserManager:
 
     async def _new_stealth_page(self) -> Page:
         page = await self._context.new_page()
-        await stealth_async(page)
+        await page.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+            Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+            Object.defineProperty(navigator, 'hardwareConcurrency', {get: () => 8});
+            Object.defineProperty(navigator, 'deviceMemory', {get: () => 8});
+            Object.defineProperty(navigator, 'vendor', {get: () => 'Google Inc.'});
+            window.chrome = {
+                runtime: {}, app: {},
+                loadTimes: () => ({}),
+                csi: () => ({})
+            };
+            const _query = window.navigator.permissions.query.bind(navigator.permissions);
+            window.navigator.permissions.query = (p) =>
+                p.name === 'notifications'
+                    ? Promise.resolve({state: Notification.permission})
+                    : _query(p);
+            const getParam = WebGLRenderingContext.prototype.getParameter;
+            WebGLRenderingContext.prototype.getParameter = function(p) {
+                if (p === 37445) return 'Intel Inc.';
+                if (p === 37446) return 'Intel Iris OpenGL Engine';
+                return getParam.call(this, p);
+            };
+        """)
         return page
 
     async def _login(self) -> None:
