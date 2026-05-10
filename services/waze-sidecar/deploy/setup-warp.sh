@@ -8,7 +8,13 @@ set -euo pipefail
 echo "[warp] Adding Cloudflare WARP apt repository..."
 curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
     | gpg --dearmor -o /usr/share/keyrings/cloudflare-warp.gpg
-echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp.gpg] https://pkg.cloudflareclient.com/ any main" \
+# WARP publishes focal and jammy packages; noble falls back to jammy
+CODENAME=$(lsb_release -cs 2>/dev/null || echo "jammy")
+case "$CODENAME" in
+    focal|jammy) ;;
+    *) CODENAME=jammy ;;
+esac
+echo "deb [arch=amd64 signed-by=/usr/share/keyrings/cloudflare-warp.gpg] https://pkg.cloudflareclient.com/ $CODENAME main" \
     > /etc/apt/sources.list.d/cloudflare-warp.list
 apt-get update -qq
 apt-get install -y cloudflare-warp
