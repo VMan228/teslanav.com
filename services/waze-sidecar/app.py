@@ -50,7 +50,7 @@ async def get_alerts(
         for a in alerts:
             if "uuid" not in a and "id" in a:
                 a["uuid"] = a["id"]
-        log.info("Returning %d alerts for bbox %.2f,%.2f,%.2f,%.2f", left, right, bottom, top)
+        log.info("Returning %d alerts for bbox %.2f,%.2f,%.2f,%.2f", len(alerts), left, right, bottom, top)
         return JSONResponse({"alerts": alerts})
     except RuntimeError as exc:
         # Session expired + no IMAP configured → needs manual intervention
