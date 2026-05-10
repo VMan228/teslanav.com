@@ -1,5 +1,5 @@
 [Unit]
-Description=SOCKS5 proxy to residential Windows machine via SSH reverse tunnel
+Description=Forward Windows sidecar port 8001 to VPS via SSH reverse tunnel
 # Windows must have established the reverse tunnel (port 2222) before this starts
 After=network.target
 Wants=network.target
@@ -16,7 +16,7 @@ Wants=network.target
 # Set WINDOWS_USER to the Windows username before installing.
 Environment=WINDOWS_USER=REPLACE_WITH_WINDOWS_USERNAME
 ExecStart=ssh \
-    -D 127.0.0.1:1080 \
+    -L 127.0.0.1:8001:localhost:8001 \
     -N \
     -p 2222 \
     -o ServerAliveInterval=30 \
