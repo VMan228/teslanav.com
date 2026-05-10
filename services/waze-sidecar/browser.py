@@ -62,44 +62,59 @@ class BrowserManager:
         proxy = {"server": BROWSER_PROXY_URL} if BROWSER_PROXY_URL else None
         if proxy:
             log.info("Using proxy: %s", BROWSER_PROXY_URL)
-        # BROWSER_CHANNEL: set to "chrome" or "msedge" to use an installed browser
-        # instead of Playwright's bundled Chromium (better reCAPTCHA scoring).
-        # Leave empty to use bundled Chromium (Linux/server deployments).
         channel = os.getenv("BROWSER_CHANNEL", "") or None
-        log.info("Browser channel: %s", channel or "bundled Chromium")
+        user_data_dir = os.getenv("BROWSER_USER_DATA_DIR", "") or None
+        log.info("Browser channel=%s user_data_dir=%s", channel or "bundled", user_data_dir or "none")
+
         linux_args = [
             "--no-sandbox",
             "--disable-dev-shm-usage",
             "--disable-setuid-sandbox",
             "--crash-dumps-dir=/tmp",
         ]
-        self._browser = await self._pw.chromium.launch(
-            channel=channel,
-            headless=HEADLESS,
-            proxy=proxy,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--disable-infobars",
-                "--window-size=1920,1080",
-                "--disable-extensions",
-                *(linux_args if not channel else []),
-            ],
-        )
-        self._context = await self._browser.new_context(
-            user_agent=STEALTH_UA,
-            extra_http_headers=STEALTH_HEADERS,
-            viewport={"width": 1920, "height": 1080},
-            locale="en-US",
-            timezone_id="America/New_York",
-        )
+        common_args = [
+            "--disable-blink-features=AutomationControlled",
+            "--disable-infobars",
+            "--window-size=1920,1080",
+            "--disable-extensions",
+            *(linux_args if not channel else []),
+        ]
 
-        if COOKIE_FILE.exists():
-            log.info("Loading saved cookies from %s", COOKIE_FILE)
-            cookies = json.loads(COOKIE_FILE.read_text())
-            await self._context.add_cookies(cookies)
-            log.info("Cookies loaded — session assumed valid (confirmed on first real request)")
+        if user_data_dir:
+            # Use real browser profile — full cookie jar + fingerprint, no cookie file needed
+            log.info("Using persistent profile: %s", user_data_dir)
+            self._context = await self._pw.chromium.launch_persistent_context(
+                user_data_dir=user_data_dir,
+                channel=channel,
+                headless=HEADLESS,
+                proxy=proxy,
+                args=common_args,
+                viewport={"width": 1920, "height": 1080},
+                locale="en-US",
+                timezone_id="America/New_York",
+            )
+            self._browser = None
         else:
-            log.warning("No cookie file at %s — service will return 503 until cookies are provided", COOKIE_FILE)
+            self._browser = await self._pw.chromium.launch(
+                channel=channel,
+                headless=HEADLESS,
+                proxy=proxy,
+                args=common_args,
+            )
+            self._context = await self._browser.new_context(
+                user_agent=STEALTH_UA,
+                extra_http_headers=STEALTH_HEADERS,
+                viewport={"width": 1920, "height": 1080},
+                locale="en-US",
+                timezone_id="America/New_York",
+            )
+            if COOKIE_FILE.exists():
+                log.info("Loading saved cookies from %s", COOKIE_FILE)
+                cookies = json.loads(COOKIE_FILE.read_text())
+                await self._context.add_cookies(cookies)
+                log.info("Cookies loaded — session assumed valid (confirmed on first real request)")
+            else:
+                log.warning("No cookie file at %s — service will return 503 until cookies are provided", COOKIE_FILE)
 
         self._ready = True
         log.info("Browser ready")
@@ -143,6 +158,8 @@ class BrowserManager:
         await self._save_cookies()
 
     async def _save_cookies(self) -> None:
+        if os.getenv("BROWSER_USER_DATA_DIR"):
+            return  # persistent profile saves itself
         cookies = await self._context.cookies()
         COOKIE_FILE.parent.mkdir(parents=True, exist_ok=True)
         COOKIE_FILE.write_text(json.dumps(cookies, indent=2))
