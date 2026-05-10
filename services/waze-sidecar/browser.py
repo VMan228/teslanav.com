@@ -62,9 +62,11 @@ class BrowserManager:
         proxy = {"server": BROWSER_PROXY_URL} if BROWSER_PROXY_URL else None
         if proxy:
             log.info("Using proxy: %s", BROWSER_PROXY_URL)
+        cdp_url = os.getenv("BROWSER_CDP_URL", "") or None
         channel = os.getenv("BROWSER_CHANNEL", "") or None
         user_data_dir = os.getenv("BROWSER_USER_DATA_DIR", "") or None
-        log.info("Browser channel=%s user_data_dir=%s", channel or "bundled", user_data_dir or "none")
+        log.info("Browser cdp=%s channel=%s user_data_dir=%s",
+                 cdp_url or "none", channel or "bundled", user_data_dir or "none")
 
         linux_args = [
             "--no-sandbox",
@@ -80,7 +82,12 @@ class BrowserManager:
             *(linux_args if not channel else []),
         ]
 
-        if user_data_dir:
+        if cdp_url:
+            # Connect to an already-running real browser (no automation flags injected)
+            log.info("Connecting to existing browser via CDP: %s", cdp_url)
+            self._browser = await self._pw.chromium.connect_over_cdp(cdp_url)
+            self._context = self._browser.contexts[0] if self._browser.contexts else await self._browser.new_context()
+        elif user_data_dir:
             # Use real browser profile — full cookie jar + fingerprint, no cookie file needed
             log.info("Using persistent profile: %s", user_data_dir)
             self._context = await self._pw.chromium.launch_persistent_context(
@@ -158,8 +165,8 @@ class BrowserManager:
         await self._save_cookies()
 
     async def _save_cookies(self) -> None:
-        if os.getenv("BROWSER_USER_DATA_DIR"):
-            return  # persistent profile saves itself
+        if os.getenv("BROWSER_USER_DATA_DIR") or os.getenv("BROWSER_CDP_URL"):
+            return  # persistent/CDP profile saves itself
         cookies = await self._context.cookies()
         COOKIE_FILE.parent.mkdir(parents=True, exist_ok=True)
         COOKIE_FILE.write_text(json.dumps(cookies, indent=2))
