@@ -36,4 +36,4 @@ Write-Host "  Press Ctrl+C to stop."
 Write-Host ""
 
 Set-Location $sidecarDir
-python -m uvicorn app:app --host 127.0.0.1 --port $Port
+py -m uvicorn app:app --host 127.0.0.1 --port $Port
