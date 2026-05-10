@@ -41,8 +41,10 @@ python3 -m venv "$INSTALL_DIR/.venv"
 
 # ── 5. Playwright browsers ────────────────────────────────────────────────────
 echo "[setup] Installing Playwright Chromium…"
-"$INSTALL_DIR/.venv/bin/playwright" install chromium
-"$INSTALL_DIR/.venv/bin/playwright" install-deps chromium
+PLAYWRIGHT_BROWSERS_PATH="$INSTALL_DIR/.playwright-browsers" \
+    "$INSTALL_DIR/.venv/bin/playwright" install chromium
+PLAYWRIGHT_BROWSERS_PATH="$INSTALL_DIR/.playwright-browsers" \
+    "$INSTALL_DIR/.venv/bin/playwright" install-deps chromium
 
 # ── 6. Env file ───────────────────────────────────────────────────────────────
 if [[ ! -f "$INSTALL_DIR/.env" ]]; then

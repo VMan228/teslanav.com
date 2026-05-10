@@ -353,6 +353,7 @@ update-sidecar: _check-root
 		--exclude='.env' \
 		--exclude='data/' \
 		--exclude='.venv/' \
+		--exclude='.playwright-browsers/' \
 		--exclude='__pycache__/' \
 		services/waze-sidecar/ $(SIDECAR_DIR)/
 	chown -R waze-sidecar:waze-sidecar $(SIDECAR_DIR)
