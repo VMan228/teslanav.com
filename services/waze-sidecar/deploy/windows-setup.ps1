@@ -92,14 +92,22 @@ Start-ScheduledTask -TaskName $taskName
 Write-Ok "Tunnel started - VPS port 2222 now forwards to this machine"
 
 # --- 4. Firewall ---
-Write-Step "Ensuring Windows Firewall allows inbound SSH..."
-$rule = Get-NetFirewallRule -DisplayName "OpenSSH Server (sshd)" -ErrorAction SilentlyContinue
-if (-not $rule) {
+Write-Step "Ensuring Windows Firewall allows inbound SSH and sidecar..."
+$sshRule = Get-NetFirewallRule -DisplayName "OpenSSH Server (sshd)" -ErrorAction SilentlyContinue
+if (-not $sshRule) {
     New-NetFirewallRule -Name sshd -DisplayName "OpenSSH Server (sshd)" `
         -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 | Out-Null
-    Write-Ok "Firewall rule added"
+    Write-Ok "SSH firewall rule added"
 } else {
-    Write-Ok "Firewall rule already exists"
+    Write-Ok "SSH firewall rule already exists"
+}
+$sidecarRule = Get-NetFirewallRule -DisplayName "Waze Sidecar (8001)" -ErrorAction SilentlyContinue
+if (-not $sidecarRule) {
+    New-NetFirewallRule -Name WazeSidecar -DisplayName "Waze Sidecar (8001)" `
+        -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 8001 | Out-Null
+    Write-Ok "Sidecar firewall rule added"
+} else {
+    Write-Ok "Sidecar firewall rule already exists"
 }
 
 # --- Done ---
