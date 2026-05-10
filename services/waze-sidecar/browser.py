@@ -68,6 +68,7 @@ class BrowserManager:
                 "--disable-infobars",
                 "--window-size=1920,1080",
                 "--disable-extensions",
+                "--disable-crash-reporter",
             ],
         )
         self._context = await self._browser.new_context(
