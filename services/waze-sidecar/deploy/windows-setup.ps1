@@ -6,10 +6,9 @@
 
 param(
     [Parameter(Mandatory)]
-    [string]$VpsPublicKey,      # Contents of cat ~/.ssh/id_ed25519.pub on the VPS
-
+    [string]$VpsPublicKey,
     [Parameter(Mandatory)]
-    [string]$VpsHost            # VPS IP or hostname (e.g. nav.example.com)
+    [string]$VpsHost
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,7 +17,7 @@ function Write-Step { param($msg) Write-Host "`n==> $msg" -ForegroundColor Cyan 
 function Write-Ok   { param($msg) Write-Host "    OK: $msg" -ForegroundColor Green }
 function Write-Warn { param($msg) Write-Host "    WARN: $msg" -ForegroundColor Yellow }
 
-# ── 1. OpenSSH Server ─────────────────────────────────────────────────────────
+# --- 1. OpenSSH Server ---
 Write-Step "Installing OpenSSH Server..."
 $cap = Get-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
 if ($cap.State -ne "Installed") {
@@ -31,7 +30,7 @@ Start-Service sshd
 Set-Service -Name sshd -StartupType Automatic
 Write-Ok "sshd running and set to auto-start"
 
-# ── 2. Authorized key ─────────────────────────────────────────────────────────
+# --- 2. Authorized key ---
 Write-Step "Adding VPS public key to authorized_keys..."
 
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
@@ -39,16 +38,15 @@ $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIden
 
 if ($isAdmin) {
     $keyFile = "C:\ProgramData\ssh\administrators_authorized_keys"
-    Write-Warn "Administrator account detected — using $keyFile"
+    Write-Warn "Administrator account - using $keyFile"
 } else {
     $keyFile = "$env:USERPROFILE\.ssh\authorized_keys"
     New-Item -ItemType Directory -Force "$env:USERPROFILE\.ssh" | Out-Null
 }
 
-# Avoid duplicates
 $existing = if (Test-Path $keyFile) { Get-Content $keyFile } else { @() }
 if ($existing -contains $VpsPublicKey) {
-    Write-Ok "Key already present — skipping"
+    Write-Ok "Key already present - skipping"
 } else {
     Add-Content $keyFile $VpsPublicKey
     Write-Ok "Key added to $keyFile"
@@ -59,20 +57,19 @@ if ($isAdmin) {
     Write-Ok "Permissions set on administrators_authorized_keys"
 }
 
-# ── 3. Reverse SSH tunnel scheduled task ──────────────────────────────────────
+# --- 3. Reverse SSH tunnel scheduled task ---
 Write-Step "Creating scheduled task for reverse SSH tunnel..."
 
-$taskName  = "WazeSidecarSSHTunnel"
-$sshArgs   = "-N -R 2222:localhost:22 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new $VpsHost"
+$taskName = "WazeSidecarSSHTunnel"
+$sshArgs  = "-N -R 2222:localhost:22 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new $VpsHost"
 
-# Remove old task if exists
 if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
 }
 
-$action  = New-ScheduledTaskAction -Execute "ssh.exe" -Argument $sshArgs
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-$settings = New-ScheduledTaskSettingsSet `
+$action    = New-ScheduledTaskAction -Execute "ssh.exe" -Argument $sshArgs
+$trigger   = New-ScheduledTaskTrigger -AtLogOn
+$settings  = New-ScheduledTaskSettingsSet `
     -RestartCount 999 `
     -RestartInterval (New-TimeSpan -Minutes 1) `
     -ExecutionTimeLimit ([TimeSpan]::Zero)
@@ -87,11 +84,10 @@ Register-ScheduledTask `
 
 Write-Ok "Scheduled task '$taskName' created (runs at logon, restarts on failure)"
 
-# Start it now without waiting for next logon
 Start-ScheduledTask -TaskName $taskName
-Write-Ok "Tunnel started — VPS port 2222 now forwards to this machine's SSH"
+Write-Ok "Tunnel started - VPS port 2222 now forwards to this machine"
 
-# ── 4. Firewall ───────────────────────────────────────────────────────────────
+# --- 4. Firewall ---
 Write-Step "Ensuring Windows Firewall allows inbound SSH..."
 $rule = Get-NetFirewallRule -DisplayName "OpenSSH Server (sshd)" -ErrorAction SilentlyContinue
 if (-not $rule) {
@@ -102,12 +98,12 @@ if (-not $rule) {
     Write-Ok "Firewall rule already exists"
 }
 
-# ── Done ──────────────────────────────────────────────────────────────────────
+# --- Done ---
 Write-Host ""
 Write-Host "Setup complete." -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps on the VPS:" -ForegroundColor Green
-Write-Host "  1. Wait ~10 seconds for the tunnel to establish, then verify:"
+Write-Host "  1. Wait ~10 seconds for the tunnel, then verify:"
 Write-Host "       ssh -p 2222 $env:USERNAME@127.0.0.1 exit"
 Write-Host ""
 Write-Host "  2. Install the SOCKS5 service:"
