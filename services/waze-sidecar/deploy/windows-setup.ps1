@@ -65,7 +65,7 @@ Write-Ok "sshd restarted"
 Write-Step "Creating scheduled task for reverse SSH tunnel..."
 
 $taskName = "WazeSidecarSSHTunnel"
-$sshArgs  = "-N -R 2222:127.0.0.1:22 -R 8001:127.0.0.1:8001 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new $VpsHost"
+$sshArgs  = "-N -R 2222:127.0.0.1:22 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new $VpsHost"
 
 if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false

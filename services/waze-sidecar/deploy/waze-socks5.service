@@ -16,7 +16,7 @@ Wants=network.target
 # Set WINDOWS_USER to the Windows username before installing.
 Environment=WINDOWS_USER=REPLACE_WITH_WINDOWS_USERNAME
 ExecStart=ssh \
-    -L 127.0.0.1:8001:localhost:8001 \
+    -L 127.0.0.1:8001:127.0.0.1:8001 \
     -N \
     -p 2222 \
     -o ServerAliveInterval=30 \
