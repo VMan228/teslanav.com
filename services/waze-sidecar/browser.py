@@ -20,8 +20,9 @@ log = logging.getLogger(__name__)
 
 COOKIE_FILE = Path(os.getenv("COOKIE_FILE", "/data/waze_session.json"))
 WAZE_LIVEMAP = "https://www.waze.com/live-map"
-# Set PLAYWRIGHT_HEADLESS=0 (with Xvfb + DISPLAY=:99) to run headed — better reCAPTCHA scores
 HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "1") != "0"
+# Residential SOCKS5 proxy for reCAPTCHA scoring (e.g. socks5://127.0.0.1:1080)
+BROWSER_PROXY_URL = os.getenv("BROWSER_PROXY_URL", "")
 
 STEALTH_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -58,8 +59,12 @@ class BrowserManager:
     async def _launch(self) -> None:
         log.info("Launching Playwright browser (headless=%s)", HEADLESS)
         self._pw = await async_playwright().start()
+        proxy = {"server": BROWSER_PROXY_URL} if BROWSER_PROXY_URL else None
+        if proxy:
+            log.info("Using proxy: %s", BROWSER_PROXY_URL)
         self._browser = await self._pw.chromium.launch(
             headless=HEADLESS,
+            proxy=proxy,
             args=[
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",

@@ -54,6 +54,7 @@ endif
         ssl \
         setup-tunnel restart-tunnel logs-tunnel \
         setup-warp \
+        setup-socks5 \
         env-init env-check \
         deploy build up down \
         update pull update-sidecar \
@@ -274,6 +275,25 @@ logs-tunnel:
 # ----------------------------------------------------------------------------
 # Cloudflare WARP   (improves outbound IP trust score for Waze georss)
 # ----------------------------------------------------------------------------
+
+## Install SSH SOCKS5 tunnel service routing Playwright through a residential Windows machine
+## Requires WINDOWS_USER=<username> on the command line
+setup-socks5: _check-root
+	@if [ -z '$(WINDOWS_USER)' ]; then \
+		printf '$(RED)Error: WINDOWS_USER is required  ->  make setup-socks5 WINDOWS_USER=yourname$(RESET)\n'; \
+		exit 1; \
+	fi
+	@printf '$(BOLD)Installing waze-socks5 systemd service...$(RESET)\n'
+	sed 's/REPLACE_WITH_WINDOWS_USERNAME/$(WINDOWS_USER)/g' \
+		services/waze-sidecar/deploy/waze-socks5.service \
+		> /etc/systemd/system/waze-socks5.service
+	systemctl daemon-reload
+	systemctl enable --now waze-socks5
+	@printf '$(GREEN)waze-socks5 service installed.$(RESET)\n'
+	@printf 'Check tunnel: systemctl status waze-socks5\n'
+	@printf 'Then set in /opt/waze-sidecar/.env:\n'
+	@printf '  BROWSER_PROXY_URL=socks5://127.0.0.1:1080\n'
+	@printf 'And restart: make restart-sidecar\n\n'
 
 ## Install Cloudflare WARP and route all outbound server traffic via Cloudflare
 setup-warp: _check-root

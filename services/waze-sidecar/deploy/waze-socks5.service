@@ -1,0 +1,35 @@
+[Unit]
+Description=SOCKS5 proxy to residential Windows machine via SSH reverse tunnel
+# Windows must have established the reverse tunnel (port 2222) before this starts
+After=network.target
+Wants=network.target
+
+[Service]
+# Connects to Windows via its reverse tunnel and opens a local SOCKS5 proxy
+# on 127.0.0.1:1080 that exits through the Windows machine's residential IP.
+#
+# Prerequisites on the VPS:
+#   1. Windows user's public key must be in authorized_keys on Windows
+#   2. VPS must have accepted Windows' host key (run once manually first):
+#      ssh -p 2222 WINDOWS_USER@127.0.0.1
+#
+# Set WINDOWS_USER to the Windows username before installing.
+Environment=WINDOWS_USER=REPLACE_WITH_WINDOWS_USERNAME
+ExecStart=ssh \
+    -D 127.0.0.1:1080 \
+    -N \
+    -p 2222 \
+    -o ServerAliveInterval=30 \
+    -o ServerAliveCountMax=3 \
+    -o ExitOnForwardFailure=yes \
+    -o StrictHostKeyChecking=accept-new \
+    -o ConnectTimeout=10 \
+    ${WINDOWS_USER}@127.0.0.1
+Restart=always
+RestartSec=15
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=waze-socks5
+
+[Install]
+WantedBy=multi-user.target
