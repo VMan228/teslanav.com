@@ -52,11 +52,12 @@ endif
 .PHONY: help \
         setup setup-docker setup-sidecar setup-nginx \
         ssl \
+        setup-tunnel restart-tunnel logs-tunnel \
         env-init env-check \
         deploy build up down \
         update pull update-sidecar \
         restart restart-sidecar \
-        status logs logs-sidecar shell \
+        status logs logs-sidecar logs-tunnel shell \
         cookies rollback \
         _check-root _check-domain _check-env
 
@@ -68,7 +69,8 @@ help:
 	@printf '$(CYAN)First-time setup$(RESET) (run as root):\n'
 	@printf '  make setup   DOMAIN=nav.example.com\n'
 	@printf '  make env-init && nano .env\n'
-	@printf '  make ssl     DOMAIN=nav.example.com  ACME_EMAIL=you@example.com\n'
+	@printf '  make ssl          DOMAIN=nav.example.com  ACME_EMAIL=you@example.com\n'
+	@printf '  make setup-tunnel DOMAIN=nav.example.com  (alternative to ssl + nginx)\n'
 	@printf '  make cookies DOMAIN=nav.example.com\n'
 	@printf '  make deploy\n\n'
 	@printf '$(CYAN)Deployment$(RESET):\n'
@@ -82,8 +84,10 @@ help:
 	@printf '  make status          Show status of all services\n'
 	@printf '  make logs            Follow teslanav container logs\n'
 	@printf '  make logs-sidecar    Follow waze-sidecar systemd journal\n'
+	@printf '  make logs-tunnel     Follow cloudflared systemd journal\n'
 	@printf '  make restart         Restart teslanav container\n'
 	@printf '  make restart-sidecar Restart waze-sidecar systemd service\n'
+	@printf '  make restart-tunnel  Restart cloudflared systemd service\n'
 	@printf '  make shell           Open shell in running teslanav container\n'
 	@printf '  make rollback        List recent commits for manual rollback\n\n'
 	@printf '$(CYAN)Cookie bootstrap$(RESET):\n'
@@ -186,6 +190,84 @@ ssl: _check-root _check-domain _check-env
 		--redirect
 	@printf '$(GREEN)HTTPS enabled. Auto-renewal is handled by certbot.$(RESET)\n'
 	@printf 'Verify: certbot renew --dry-run\n'
+
+# ----------------------------------------------------------------------------
+# Cloudflare Tunnel   (alternative to ssl + nginx for public ingress)
+# ----------------------------------------------------------------------------
+
+## Install cloudflared, create tunnel named teslanav, wire DNS and ingress
+## Requires in .env: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ZONE_ID
+## Token needs: Account/Cloudflare Tunnel/Edit + Zone/DNS/Edit
+setup-tunnel: _check-root _check-domain _check-env
+	@printf '$(BOLD)Installing cloudflared...$(RESET)\n'
+	curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
+		| gpg --dearmor -o /usr/share/keyrings/cloudflare-main.gpg
+	echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" \
+		> /etc/apt/sources.list.d/cloudflared.list
+	apt-get update -qq
+	apt-get install -y --no-install-recommends cloudflared jq
+	@printf '$(BOLD)Provisioning tunnel via Cloudflare API...$(RESET)\n'
+	@set -e; \
+	CF_TOKEN=$$(grep -E '^CLOUDFLARE_API_TOKEN=' .env | cut -d= -f2- | tr -d '"'); \
+	ACCOUNT_ID=$$(grep -E '^CLOUDFLARE_ACCOUNT_ID=' .env | cut -d= -f2- | tr -d '"'); \
+	ZONE_ID=$$(grep -E '^CLOUDFLARE_ZONE_ID=' .env | cut -d= -f2- | tr -d '"'); \
+	if [ -z "$$CF_TOKEN" ] || [ -z "$$ACCOUNT_ID" ] || [ -z "$$ZONE_ID" ]; then \
+		printf '$(RED)Error: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, and CLOUDFLARE_ZONE_ID must all be set in .env$(RESET)\n'; \
+		exit 1; \
+	fi; \
+	TUNNEL_NAME=teslanav; \
+	TUNNEL_ID=$$(curl -sf \
+		"https://api.cloudflare.com/client/v4/accounts/$$ACCOUNT_ID/cfd_tunnel?name=$$TUNNEL_NAME&is_deleted=false" \
+		-H "Authorization: Bearer $$CF_TOKEN" | jq -r '.result[0].id // empty'); \
+	if [ -n "$$TUNNEL_ID" ]; then \
+		printf 'Reusing existing tunnel: %s\n' "$$TUNNEL_ID"; \
+	else \
+		TUNNEL_ID=$$(curl -sf -X POST \
+			"https://api.cloudflare.com/client/v4/accounts/$$ACCOUNT_ID/cfd_tunnel" \
+			-H "Authorization: Bearer $$CF_TOKEN" \
+			-H "Content-Type: application/json" \
+			-d "{\"name\":\"$$TUNNEL_NAME\",\"config_src\":\"cloudflare\"}" \
+			| jq -r '.result.id'); \
+		printf 'Created tunnel: %s\n' "$$TUNNEL_ID"; \
+	fi; \
+	curl -sf -X PUT \
+		"https://api.cloudflare.com/client/v4/accounts/$$ACCOUNT_ID/cfd_tunnel/$$TUNNEL_ID/configurations" \
+		-H "Authorization: Bearer $$CF_TOKEN" \
+		-H "Content-Type: application/json" \
+		-d "{\"config\":{\"ingress\":[{\"hostname\":\"$(DOMAIN)\",\"service\":\"http://localhost:3000\"},{\"service\":\"http_status:404\"}]}}" \
+		>/dev/null; \
+	EXISTING_REC=$$(curl -sf \
+		"https://api.cloudflare.com/client/v4/zones/$$ZONE_ID/dns_records?name=$(DOMAIN)&type=CNAME" \
+		-H "Authorization: Bearer $$CF_TOKEN" | jq -r '.result[0].id // empty'); \
+	if [ -n "$$EXISTING_REC" ]; then \
+		curl -sf -X DELETE \
+			"https://api.cloudflare.com/client/v4/zones/$$ZONE_ID/dns_records/$$EXISTING_REC" \
+			-H "Authorization: Bearer $$CF_TOKEN" >/dev/null; \
+	fi; \
+	curl -sf -X POST \
+		"https://api.cloudflare.com/client/v4/zones/$$ZONE_ID/dns_records" \
+		-H "Authorization: Bearer $$CF_TOKEN" \
+		-H "Content-Type: application/json" \
+		-d "{\"type\":\"CNAME\",\"name\":\"$(DOMAIN)\",\"content\":\"$$TUNNEL_ID.cfargotunnel.com\",\"proxied\":true,\"ttl\":1}" \
+		>/dev/null; \
+	TUNNEL_TOKEN=$$(curl -sf \
+		"https://api.cloudflare.com/client/v4/accounts/$$ACCOUNT_ID/cfd_tunnel/$$TUNNEL_ID/token" \
+		-H "Authorization: Bearer $$CF_TOKEN" | jq -r '.result'); \
+	cloudflared service uninstall 2>/dev/null || true; \
+	cloudflared service install "$$TUNNEL_TOKEN"
+	systemctl enable --now cloudflared
+	@printf '\n$(GREEN)$(BOLD)Cloudflare Tunnel active.$(RESET)\n'
+	@printf '$(DOMAIN) -> tunnel -> localhost:3000\n'
+	@printf 'Logs:   make logs-tunnel\n\n'
+
+## Restart the cloudflared systemd service (requires root)
+restart-tunnel: _check-root
+	systemctl restart cloudflared
+	@printf '$(GREEN)cloudflared restarted.$(RESET)\n'
+
+## Follow cloudflared systemd journal (Ctrl-C to exit)
+logs-tunnel:
+	journalctl -u cloudflared -f
 
 # ----------------------------------------------------------------------------
 # Environment
@@ -296,7 +378,7 @@ restart-sidecar: _check-root
 # Monitoring
 # ----------------------------------------------------------------------------
 
-## Show status of all services: Docker, waze-sidecar, nginx
+## Show status of all services: Docker, waze-sidecar, nginx, cloudflared
 status:
 	@printf '$(BOLD)=== Docker containers ===$(RESET)\n'
 	$(COMPOSE) ps
@@ -304,6 +386,8 @@ status:
 	systemctl status waze-sidecar --no-pager -l || true
 	@printf '\n$(BOLD)=== nginx ===$(RESET)\n'
 	systemctl status nginx --no-pager -l || true
+	@printf '\n$(BOLD)=== Cloudflare Tunnel ===$(RESET)\n'
+	systemctl status cloudflared --no-pager -l || true
 
 ## Follow teslanav container logs (Ctrl-C to exit)
 logs:
