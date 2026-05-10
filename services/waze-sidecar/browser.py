@@ -14,7 +14,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-from playwright.async_api import async_playwright, Browser, BrowserContext, Playwright
+from playwright.async_api import async_playwright, Browser, BrowserContext, Page, Playwright
+from playwright_stealth import stealth_async
 
 log = logging.getLogger(__name__)
 
@@ -78,24 +79,6 @@ class BrowserManager:
             locale="en-US",
             timezone_id="America/New_York",
         )
-        # Comprehensive anti-detection script
-        await self._context.add_init_script("""
-            // Hide automation flag
-            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-            // Fake plugins (empty in headless)
-            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
-            // Fake languages
-            Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
-            // Add chrome runtime object that headless Chrome lacks
-            window.chrome = {runtime: {}, loadTimes: function(){}, csi: function(){}, app: {}};
-            // Prevent iframe detection via permissions
-            const originalQuery = window.navigator.permissions.query;
-            window.navigator.permissions.query = (parameters) => (
-                parameters.name === 'notifications' ?
-                    Promise.resolve({state: Notification.permission}) :
-                    originalQuery(parameters)
-            );
-        """)
 
         if COOKIE_FILE.exists():
             log.info("Loading saved cookies from %s", COOKIE_FILE)
@@ -108,10 +91,15 @@ class BrowserManager:
         self._ready = True
         log.info("Browser ready")
 
+    async def _new_stealth_page(self) -> Page:
+        page = await self._context.new_page()
+        await stealth_async(page)
+        return page
+
     async def _login(self) -> None:
         from auth import login  # avoid circular import at module load
 
-        page = await self._context.new_page()
+        page = await self._new_stealth_page()
         try:
             await login(self._context, page)  # raises RuntimeError if IMAP not configured
         finally:
@@ -146,7 +134,7 @@ class BrowserManager:
             )
 
         # Fresh page per request — guarantees Waze JS fires a new georss on load
-        page = await self._context.new_page()
+        page = await self._new_stealth_page()
         try:
             await page.route("**/georss**", handle_route)
 
