@@ -66,6 +66,7 @@ class BrowserManager:
         # instead of Playwright's bundled Chromium (better reCAPTCHA scoring).
         # Leave empty to use bundled Chromium (Linux/server deployments).
         channel = os.getenv("BROWSER_CHANNEL", "") or None
+        log.info("Browser channel: %s", channel or "bundled Chromium")
         linux_args = [
             "--no-sandbox",
             "--disable-dev-shm-usage",
@@ -163,7 +164,8 @@ class BrowserManager:
             f"&left={left}&right={right}&ma=50&mj=0&mu=0"
         )
 
-        async def handle_route(route, _request):
+        async def handle_route(route, request):
+            log.debug("Intercepted georss: %s", request.url[:200])
             await route.continue_(
                 url=f"https://www.waze.com/live-map/api/georss?{target_params}"
             )
