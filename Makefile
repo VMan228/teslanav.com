@@ -164,11 +164,21 @@ setup-nginx: _check-root _check-domain
 # SSL   (requires root + DNS pointing at this server)
 # ----------------------------------------------------------------------------
 
-## Obtain a Let's Encrypt certificate and configure HTTPS in nginx
-ssl: _check-root _check-domain
-	@printf "$(BOLD)Obtaining Let's Encrypt certificate for $(DOMAIN)...$(RESET)\n"
-	apt-get install -y --no-install-recommends certbot python3-certbot-nginx
-	certbot --nginx \
+## Obtain a Let's Encrypt certificate via Cloudflare DNS and configure HTTPS in nginx
+ssl: _check-root _check-domain _check-env
+	@printf "$(BOLD)Obtaining Let's Encrypt certificate for $(DOMAIN) via Cloudflare DNS...$(RESET)\n"
+	apt-get install -y --no-install-recommends certbot python3-certbot-nginx python3-certbot-dns-cloudflare
+	@CF_TOKEN=$$(grep -E '^CLOUDFLARE_API_TOKEN=' .env | cut -d= -f2- | tr -d '"'); \
+	if [ -z "$$CF_TOKEN" ]; then \
+		printf '$(RED)Error: CLOUDFLARE_API_TOKEN not set in .env$(RESET)\n'; \
+		exit 1; \
+	fi; \
+	install -m 600 /dev/null /etc/letsencrypt/cloudflare.ini; \
+	printf 'dns_cloudflare_api_token = %s\n' "$$CF_TOKEN" > /etc/letsencrypt/cloudflare.ini; \
+	certbot --authenticator dns-cloudflare \
+		--installer nginx \
+		--dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini \
+		--dns-cloudflare-propagation-seconds 60 \
 		-d $(DOMAIN) \
 		--non-interactive \
 		--agree-tos \
