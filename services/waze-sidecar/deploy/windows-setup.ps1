@@ -103,22 +103,20 @@ if (-not $rule) {
 }
 
 # ── Done ──────────────────────────────────────────────────────────────────────
-Write-Host @"
-
-Setup complete.
-
-Next steps on the VPS:
-  1. Wait ~10 seconds for the tunnel to establish, then verify:
-       ssh -p 2222 $env:USERNAME@127.0.0.1 exit
-
-  2. Install the SOCKS5 service:
-       sudo make setup-socks5 WINDOWS_USER=$env:USERNAME
-
-  3. Verify the residential exit IP:
-       curl --proxy socks5://127.0.0.1:1080 -s https://cloudflare.com/cdn-cgi/trace | grep ip=
-
-  4. Enable in sidecar:
-       echo 'BROWSER_PROXY_URL=socks5://127.0.0.1:1080' | sudo tee -a /opt/waze-sidecar/.env
-       sudo make restart-sidecar
-
-"@ -ForegroundColor Green
+Write-Host ""
+Write-Host "Setup complete." -ForegroundColor Green
+Write-Host ""
+Write-Host "Next steps on the VPS:" -ForegroundColor Green
+Write-Host "  1. Wait ~10 seconds for the tunnel to establish, then verify:"
+Write-Host "       ssh -p 2222 $env:USERNAME@127.0.0.1 exit"
+Write-Host ""
+Write-Host "  2. Install the SOCKS5 service:"
+Write-Host "       sudo make setup-socks5 WINDOWS_USER=$env:USERNAME"
+Write-Host ""
+Write-Host "  3. Verify the residential exit IP:"
+Write-Host "       curl --proxy socks5://127.0.0.1:1080 -s https://cloudflare.com/cdn-cgi/trace | grep ip="
+Write-Host ""
+Write-Host "  4. Enable in sidecar:"
+Write-Host "       echo BROWSER_PROXY_URL=socks5://127.0.0.1:1080 | sudo tee -a /opt/waze-sidecar/.env"
+Write-Host "       sudo make restart-sidecar"
+Write-Host ""
