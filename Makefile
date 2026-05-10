@@ -53,6 +53,7 @@ endif
         setup setup-docker setup-sidecar setup-nginx \
         ssl \
         setup-tunnel restart-tunnel logs-tunnel \
+        setup-warp \
         env-init env-check \
         deploy build up down \
         update pull update-sidecar \
@@ -71,6 +72,7 @@ help:
 	@printf '  make env-init && nano .env\n'
 	@printf '  make ssl          DOMAIN=nav.example.com  ACME_EMAIL=you@example.com\n'
 	@printf '  make setup-tunnel DOMAIN=nav.example.com  (alternative to ssl + nginx)\n'
+	@printf '  make setup-warp                           (improve Waze IP trust score)\n'
 	@printf '  make cookies DOMAIN=nav.example.com\n'
 	@printf '  make deploy\n\n'
 	@printf '$(CYAN)Deployment$(RESET):\n'
@@ -270,6 +272,19 @@ logs-tunnel:
 	journalctl -u cloudflared -f
 
 # ----------------------------------------------------------------------------
+# Cloudflare WARP   (improves outbound IP trust score for Waze georss)
+# ----------------------------------------------------------------------------
+
+## Install Cloudflare WARP and route all outbound server traffic via Cloudflare
+setup-warp: _check-root
+	@printf '$(BOLD)Setting up Cloudflare WARP...$(RESET)\n'
+	bash services/waze-sidecar/deploy/setup-warp.sh
+	@printf '\n$(GREEN)WARP active. Restart waze-sidecar to use the new route:$(RESET)\n'
+	@printf '  make restart-sidecar\n'
+	@printf 'Disconnect: warp-cli disconnect\n'
+	@printf 'Reconnect:  warp-cli connect\n\n'
+
+# ----------------------------------------------------------------------------
 # Environment
 # ----------------------------------------------------------------------------
 
@@ -389,6 +404,8 @@ status:
 	systemctl status nginx --no-pager -l || true
 	@printf '\n$(BOLD)=== Cloudflare Tunnel ===$(RESET)\n'
 	systemctl status cloudflared --no-pager -l || true
+	@printf '\n$(BOLD)=== Cloudflare WARP ===$(RESET)\n'
+	warp-cli status 2>/dev/null || printf '  (not installed)\n'
 
 ## Follow teslanav container logs (Ctrl-C to exit)
 logs:
