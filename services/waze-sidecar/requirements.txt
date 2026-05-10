@@ -2,4 +2,5 @@ fastapi==0.115.0
 uvicorn[standard]==0.30.6
 playwright==1.48.0
 playwright-stealth==1.0.6
+setuptools
 python-dotenv==1.0.1
