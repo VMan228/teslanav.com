@@ -12,6 +12,7 @@ EnvironmentFile=/opt/waze-sidecar/.env
 Environment=HOME=/opt/waze-sidecar
 Environment=DISPLAY=:99
 Environment=PLAYWRIGHT_HEADLESS=0
+Environment=COOKIE_FILE=/opt/waze-sidecar/data/waze_session.json
 Environment=PLAYWRIGHT_BROWSERS_PATH=/opt/waze-sidecar/.playwright-browsers
 ExecStart=/opt/waze-sidecar/.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8001
 Restart=on-failure
