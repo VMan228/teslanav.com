@@ -65,7 +65,7 @@ Write-Ok "sshd restarted"
 Write-Step "Creating scheduled task for reverse SSH tunnel..."
 
 $taskName = "WazeSidecarSSHTunnel"
-$sshArgs  = "-N -R 2222:localhost:22 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new $VpsHost"
+$sshArgs  = "-N -R 2222:localhost:22 -R 8001:localhost:8001 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new $VpsHost"
 
 if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
@@ -107,16 +107,14 @@ Write-Host ""
 Write-Host "Setup complete." -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps on the VPS:" -ForegroundColor Green
-Write-Host "  1. Wait ~10 seconds for the tunnel, then verify:"
+Write-Host "  1. Wait ~10 seconds for the tunnel, then verify SSH:"
 Write-Host "       ssh -p 2222 $env:USERNAME@127.0.0.1 exit"
 Write-Host ""
-Write-Host "  2. Install the SOCKS5 service:"
-Write-Host "       sudo make setup-socks5 WINDOWS_USER=$env:USERNAME"
+Write-Host "  2. Verify the sidecar port is forwarded from Windows:"
+Write-Host "       curl -s http://127.0.0.1:8001/health"
+Write-Host "       (start the sidecar on Windows first: see deploy/windows-run.ps1)"
 Write-Host ""
-Write-Host "  3. Verify the residential exit IP:"
-Write-Host "       curl --proxy socks5://127.0.0.1:1080 -s https://cloudflare.com/cdn-cgi/trace | grep ip="
-Write-Host ""
-Write-Host "  4. Enable in sidecar:"
-Write-Host "       echo BROWSER_PROXY_URL=socks5://127.0.0.1:1080 | sudo tee -a /opt/waze-sidecar/.env"
-Write-Host "       sudo make restart-sidecar"
+Write-Host "  3. Stop the VPS sidecar (Windows is now the browser host):"
+Write-Host "       sudo systemctl stop waze-sidecar"
+Write-Host "       sudo systemctl disable waze-sidecar"
 Write-Host ""
